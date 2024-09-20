@@ -30,18 +30,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Find Python Script
-        id: find_python_script
-        run: |
-          file=$(find . -name "*.py" | head -n 1)
-          echo "::set-output name=script_path::$file"
-
       - name: Build Executable
         run: |
-          pyinstaller --onefile --windowed --name "SRM Entry" --icon=assets/icon.png ${{ steps.find_python_script.outputs.script_path }}
+          pyinstaller --onefile --windowed --name "SRM Entry" --icon=assets/icon.png *.py
       
       - name: Upload Executable
         uses: actions/upload-artifact@v3
         with:
           name: Executable-${{ matrix.os }}
-          path: dist/SRM_Entry*
+          path: |
+            dist/SRM Entry.exe
+            dist/SRM Entry
