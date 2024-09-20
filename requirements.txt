@@ -1,0 +1,4 @@
+customtkinter
+openpyxl
+gspread
+oauth2client
