@@ -32,7 +32,7 @@ jobs:
 
       - name: Build Executable
         run: |
-          pyinstaller --onefile --windowed --name "SRM Entry" --icon=assets/icon.png *.py
+          pyinstaller --onefile --windowed --name "SRM Entry" --icon=assets/icon.png SRM_Entry.py
       
       - name: Upload Executable
         uses: actions/upload-artifact@v3
