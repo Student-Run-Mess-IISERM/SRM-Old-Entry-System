@@ -3,3 +3,4 @@ openpyxl
 gspread
 oauth2client
 pyinstaller
+pillow
