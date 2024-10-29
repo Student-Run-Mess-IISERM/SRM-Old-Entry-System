@@ -5,7 +5,6 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 # Version
 
 ## Current Version
-
 ## Older Versions
 
 ### 1.1.0
