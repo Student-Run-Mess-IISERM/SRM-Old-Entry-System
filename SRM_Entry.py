@@ -21,6 +21,7 @@ from customtkinter import (
     set_appearance_mode,
 )
 from tkinter import IntVar
+from urllib3.exceptions import NewConnectionError
 
 MealType = str
 StatusLevel = str
@@ -30,22 +31,22 @@ Worksheet = gspread.worksheet.Worksheet
 now = datetime.now
 strptime = datetime.strptime
 
-scope = [
+GOOGLE_API_SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/drive',
 ]
 
-gsheet_credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
-client = gspread.authorize(gsheet_credentials)
+gsheet_credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', GOOGLE_API_SCOPES)
+gsheet_client = gspread.authorize(gsheet_credentials)
 
-tomorrow = now() + timedelta(days=1)
-tomorrow_string = tomorrow.strftime("%d %B, %Y")
+NEXT_DAY_DATE = now() + timedelta(days=1)
+NEXT_DAY_DATE_STRING = NEXT_DAY_DATE.strftime("%d %B, %Y")
 
-today = now()
-today_string = today.strftime("%d %B, %Y")
+CURRENT_DATE = now()
+CURRENT_DATE_STRING = CURRENT_DATE.strftime("%d %B, %Y")
 
-meal_map = {
+MEAL_COLUMN_MAPPING = {
     'Breakfast': {
         'status': 3,
         'time': 4,
@@ -91,7 +92,7 @@ def gsheet_batch_upload(sheet, header, data):
     sheet.update(range_name=range_name, values=data)
 
 def leave_update():
-    leave_details_spreadsheet = client.open('Leave Details for SRM')
+    leave_details_spreadsheet = gsheet_client.open('Leave Details for SRM')
     current_leave_details_worksheet = leave_details_spreadsheet.worksheet('Current Leave Details')
     all_leaves_worksheet = leave_details_spreadsheet.worksheet('Form Responses 1')
     current_leave_details_worksheet.clear()
@@ -105,7 +106,7 @@ def leave_update():
             end_date = strptime(leave_detail[6], '%m/%d/%Y')
         except ValueError:
             continue
-        is_today_leave = (tomorrow - start_date).days >= 0 and (end_date - tomorrow).days >= 0
+        is_today_leave = (NEXT_DAY_DATE - start_date).days >= 0 and (end_date - NEXT_DAY_DATE).days >= 0
         if is_today_leave:
             leave_data.append(leave_detail)
 
@@ -125,15 +126,15 @@ class Repository:
         self.share_to_emails = [email.strip() for email in values_column[5] if email.strip() != '']
 
 def subscriber_data_update():
-    repository_details_worksheet = client.open('Repository Details for SRM').worksheet('Sheet1')
+    repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
     repository = Repository(repository_details_worksheet)
-    subscriber_repository_worksheet = client.open('Repository for SRM').worksheet('Sheet1')
+    subscriber_repository_worksheet = gsheet_client.open('Repository for SRM').worksheet('Sheet1')
     subscriber_repository_worksheet.clear()
     subscriber_repository_header = ['Student Name', 'Registration Number', 'Meals Opted']
     all_subscribers = []
 
     for file, sheet in zip(repository.file_names, repository.sheet_names):
-        subscriber_worksheet = client.open(file).worksheet(sheet)
+        subscriber_worksheet = gsheet_client.open(file).worksheet(sheet)
         subscribers = subscriber_worksheet.get_all_values()
 
         for subscriber_detail in subscribers[1:]:
@@ -306,20 +307,20 @@ class App(CTk):
         self.date.grid(row=1, column=1, padx=(10, 20), pady=(10, 10), sticky="nse")
 
         if current_hour >= 22:
-            self.createDatabase = IntVar(value=1)
-            self.date.insert(0, tomorrow_string)
+            self.create_database = IntVar(value=1)
+            self.date.insert(0, NEXT_DAY_DATE_STRING)
         else:
-            self.createDatabase = IntVar(value=0)
-            self.date.insert(0, today_string)
+            self.create_database = IntVar(value=0)
+            self.date.insert(0, CURRENT_DATE_STRING)
 
-        self.leave_rep_update = IntVar(value=1)
-        self.rep_update = IntVar(value=1)
+        self.update_leave_repository = IntVar(value=1)
+        self.update_repository = IntVar(value=1)
 
-        self.spreadsheet = CTkCheckBox(self.create_file, text='Google Spreadsheet', variable=self.createDatabase)
+        self.spreadsheet = CTkCheckBox(self.create_file, text='Google Spreadsheet', variable=self.create_database)
         self.spreadsheet.grid(row=3, column=0, columnspan=2, padx=(20, 10), pady=(10, 10), sticky="nsw")
-        self.update_leave = CTkCheckBox(self.create_file, text='Update Leaves', variable=self.leave_rep_update)
+        self.update_leave = CTkCheckBox(self.create_file, text='Update Leaves', variable=self.update_leave_repository)
         self.update_leave.grid(row=4, column=0, columnspan=2, padx=(20, 10), pady=(10, 10), sticky="nsw")
-        self.update_rep = CTkCheckBox(self.create_file, text='Update Repositories', variable=self.rep_update)
+        self.update_rep = CTkCheckBox(self.create_file, text='Update Repositories', variable=self.update_repository)
         self.update_rep.grid(row=5, column=0, columnspan=2, padx=(20, 10), pady=(10, 10), sticky="nsw")
         
         self.calculate_button = CTkButton(self.create_file, text="Calculate", command=self.calculate)
@@ -383,12 +384,10 @@ class App(CTk):
         self.ms23.bind('<Return>', lambda event: self.on_click_add_ms23())
         self.ms22.bind('<Return>', lambda event: self.on_click_add_ms22())
         self.others.bind('<Return>', lambda event: self.on_click_add_others())
-
-        try:
-            self.sheet = client.open(f'{self.date.get()} {self.file_name.get()}').worksheet('Prepaid Sheet')
-        except gspread.exceptions.SpreadsheetNotFound:
-            self.write_to_status_bar('Spreadsheet not found!')
-
+        
+        self._workbook_cache = None
+        self._gsheet_cache = None
+            
     def logger_create(self, fun):
         def wrapper(*args, **kwargs):
             try:
@@ -399,6 +398,11 @@ class App(CTk):
         return wrapper
 
     def create_prepaid_entry(self, batch):
+        
+        if self.workbook() is None:
+            self.write_to_status_bar('No active Daily Entry File found. Please create a new one.')
+            return
+        
         if batch == 'MS24':
             num = str(self.ms24.get()).rjust(3, '0')
             registration_number = f'MS24{num}'
@@ -415,9 +419,8 @@ class App(CTk):
             registration_number = self.others.get().upper().strip()
             self.others.delete(0, 'end')
 
-        offline_entry_workbook = xl.load_workbook(self.get_file('daily_entry'))
-        offline_prepaid_sheet = offline_entry_workbook['Prepaid Sheet']
-        meal_type = ['veg', 'non-veg']
+        offline_prepaid_sheet = self.workbook()['Prepaid Sheet']
+        meal_types = ['veg', 'non-veg']
 
         subscriber_registration_numbers = column_values(offline_prepaid_sheet, 2)
         if registration_number not in subscriber_registration_numbers:
@@ -428,12 +431,19 @@ class App(CTk):
 
         subscriber_data = row_values(offline_prepaid_sheet, idx_of_registration_number)
         name = subscriber_data[0]
-        current_meal = meal_map[self.meal.get()]
-        status_col = current_meal['status']
-        time_col = current_meal['time']
+        
+        current_meal_type = MEAL_COLUMN_MAPPING[self.meal.get()]
+        status_col = current_meal_type['status']
+        time_col = current_meal_type['time']
         current_meal_status = subscriber_data[status_col]
+        
+        current_time = now().strftime("%H:%M:%S")
+        if self.non_veg.get() == 1:
+            current_meal_id = "non-veg"
+        else:
+            current_meal_id = "veg"
 
-        if current_meal_status in meal_type:
+        if current_meal_status in meal_types:
             self.write_to_status_bar(f'{registration_number}: {name} was already checked. STOP!')
             return
         elif current_meal_status == 'LEAVE':
@@ -442,37 +452,32 @@ class App(CTk):
         elif current_meal_status == 'NOT':
             self.write_to_status_bar(f'{registration_number}: {name} is not subscribed in this meal. STOP!')
             return
-
+        
         if self.update.get() == 1:
-            online_prepaid_sheet = self.sheet
-            online_meal_status = online_prepaid_sheet.acell(idx_of_registration_number, status_col).value
-            if online_meal_status in meal_type:
+            gsheet_prepaid_sheet = self.gsheet().worksheet('Prepaid Sheet')
+            online_meal_status = gsheet_prepaid_sheet.cell(idx_of_registration_number, status_col).value
+            if online_meal_status in meal_types:
                 self.write_to_status_bar(f'{registration_number}: {name} was checked in other mess. STOP!')
                 return
-
-        status_col_letter = chr(64 + status_col)
-        time_col_letter = chr(64 + time_col)
-
-        online_updates = [
-            {'range': f'{status_col_letter}{idx_of_registration_number}', 'values': [[meal_type[self.non_veg.get()]]]},
-            {'range': f'{time_col_letter}{idx_of_registration_number}', 'values': [[now().strftime("%H:%M:%S")]]}
-        ]
-        self.sheet.batch_update(online_updates)
-
-        if self.update.get() == 1:
-            online_prepaid_sheet.update_cell(idx_of_registration_number, status_col, meal_type[self.non_veg.get()])
-            online_prepaid_sheet.update_cell(idx_of_registration_number, time_col, now().strftime("%H:%M:%S"))
-
+            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, status_col, current_meal_id)
+            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, time_col, current_time)
+            
+        offline_prepaid_sheet.cell(idx_of_registration_number, status_col).value = current_meal_id
+        offline_prepaid_sheet.cell(idx_of_registration_number, time_col).value = current_time
+            
         self.write_to_status_bar(f'{registration_number}: {name} is checked.')
         if self.non_veg.get() == 1:
             self.generate_coupon(name, self.prepaid_extra_price.get())
         else:
-            offline_entry_workbook.save(self.get_file('daily_entry'))
+            self.workbook().save(self.get_file('daily_entry'))
 
     def generate_coupon(self, name, price):
-        today_s_workbook = xl.load_workbook(self.get_file('daily_entry'))
-        coupon_sheet = today_s_workbook[f'Coupons {self.meal.get()}']
-
+        
+        if self.workbook() is None:
+            self.write_to_status_bar('No active Daily Entry File found. Please create a new one.')
+            return
+        
+        coupon_sheet = self.workbook()[f'Coupons {self.meal.get()}']
         try:
             price_float = float(price)
         except ValueError:
@@ -482,7 +487,7 @@ class App(CTk):
         coupon_sheet.append(details_to_append)
 
         if self.update.get() == 1:
-            coupon_gsheet = self.sheet.worksheet(f'Coupons {self.meal.get()}')
+            coupon_gsheet = self.gsheet().worksheet(f'Coupons {self.meal.get()}')
             coupon_gsheet.append_row(details_to_append)
 
         self.coupon.delete(0, 'end')
@@ -494,17 +499,20 @@ class App(CTk):
         self.coupons_sold.insert(0, coupon_sheet.max_row - 1)
         self.coupons_sold.configure(state='readonly')
 
-        today_s_workbook.save(self.get_file('daily_entry'))
+        self.workbook().save(self.get_file('daily_entry'))
 
     def create_daily_file(self):
+        
+        self.clear_cache()
+        
         with open(self.get_file('log'), 'w') as file:
             json.dump([], file)
 
-        if self.leave_rep_update.get():
+        if self.update_leave_repository.get():
             self.write_to_status_bar('Updating Leave Data')
             leave_update()
 
-        if self.rep_update.get():
+        if self.update_repository.get():
             self.write_to_status_bar('Updating Subscriber Data')
             subscriber_data_update()
 
@@ -534,13 +542,14 @@ class App(CTk):
         registration_numbers = column_values(subscriber_data_worksheet, 2)
 
         today_s_workbook = xl.Workbook()
+        self._workbook_cache = today_s_workbook
         today_s_workbook.remove(today_s_workbook['Sheet'])
         today_s_workbook.create_sheet('Prepaid Sheet')
         today_s_workbook.create_sheet('Coupons Breakfast')
         today_s_workbook.create_sheet('Coupons Lunch')
         today_s_workbook.create_sheet('Coupons Dinner')
         today_s_workbook.create_sheet('Calculations')
-
+        
         prepaid_sheet = today_s_workbook['Prepaid Sheet']
         coupons_breakfast_sheet = today_s_workbook['Coupons Breakfast']
         coupons_lunch_sheet = today_s_workbook['Coupons Lunch']
@@ -583,10 +592,10 @@ class App(CTk):
             else:
                 subscriber_count['dinner'] += 1
 
-        if not self.leave_rep_update.get():
+        if not self.update_leave_repository.get():
             self.write_to_status_bar('Warning! Leave Update is not enabled. Skipping updating leaves')
         else:
-            current_leave_details_worksheet = client.open('Leave Details for SRM').worksheet('Current Leave Details')
+            current_leave_details_worksheet = gsheet_client.open('Leave Details for SRM').worksheet('Current Leave Details')
             current_leave_details = current_leave_details_worksheet.get_all_values()
             
             if len(current_leave_details) == 1:
@@ -612,25 +621,27 @@ class App(CTk):
                         prepaid_sheet[f'G{idx}'].value = 'LEAVE'
                         leaves['dinner'] += 1
 
-        if self.createDatabase.get() == 1:
+        if self.create_database.get() == 1:
             sheet_name = f'{self.date.get()} {self.file_name.get()}'
-            self.sheet = client.create(sheet_name)
-            repository_details_worksheet = client.open('Repository Details for SRM').worksheet('Sheet1')
+            new_gsheet = gsheet_client.create(sheet_name)
+            self._gsheet_cache = new_gsheet
+            repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
             repository = Repository(repository_details_worksheet)
-            self.sheet.share("studentmess@iisermohali.ac.in", perm_type='user', role='writer', notify=False)
+            self.gsheet().share("studentmess@iisermohali.ac.in", perm_type='user', role='writer', notify=False)
             for email in repository.share_to_emails:
-                self.sheet.share(email, perm_type='user', role='writer', notify=False)
-            self.sheet.add_worksheet('Prepaid Sheet', rows=1000, cols=8)
-            self.sheet.add_worksheet('Coupons Breakfast', rows=1000, cols=3)
-            self.sheet.add_worksheet('Coupons Lunch', rows=1000, cols=3)
-            self.sheet.add_worksheet('Coupons Dinner', rows=1000, cols=3)
-            self.sheet.add_worksheet('Log', rows=1000, cols=2)
-            self.sheet.del_worksheet(self.sheet.sheet1)
+                self.gsheet().share(email, perm_type='user', role='writer', notify=False)
+            self.gsheet().add_worksheet('Prepaid Sheet', rows=1000, cols=8)
+            self.gsheet().add_worksheet('Coupons Breakfast', rows=1000, cols=3)
+            self.gsheet().add_worksheet('Coupons Lunch', rows=1000, cols=3)
+            self.gsheet().add_worksheet('Coupons Dinner', rows=1000, cols=3)
+            self.gsheet().add_worksheet('Calculations', rows=1000, cols=2)
+            self.gsheet().add_worksheet('Log', rows=1000, cols=2)
+            self.gsheet().del_worksheet(self.gsheet().sheet1)
 
-            prepaid_gsheet = self.sheet.worksheet('Prepaid Sheet')
-            coupons_breakfast_gsheet = self.sheet.worksheet('Coupons Breakfast')
-            coupons_lunch_gsheet = self.sheet.worksheet('Coupons Lunch')
-            coupons_dinner_gsheet = self.sheet.worksheet('Coupons Dinner')
+            prepaid_gsheet = self.gsheet().worksheet('Prepaid Sheet')
+            coupons_breakfast_gsheet = self.gsheet().worksheet('Coupons Breakfast')
+            coupons_lunch_gsheet = self.gsheet().worksheet('Coupons Lunch')
+            coupons_dinner_gsheet = self.gsheet().worksheet('Coupons Dinner')
 
             prepaid_gsheet.append_row(prepaid_sheet_header)
             coupons_breakfast_gsheet.append_row(coupons_sheet_header)
@@ -647,7 +658,7 @@ class App(CTk):
 
             self.write_to_status_bar('Google Sheet Created!')
 
-        today_s_workbook.save(self.get_file('daily_entry'))
+        self.workbook().save(self.get_file('daily_entry'))
         self.write_to_status_bar('File Created!')
         self.information_box.configure(state='normal')
         self.information_box.insert(
@@ -672,10 +683,14 @@ Food to be Prepared:
 
     def calculate(self):
         self.write_to_status_bar('Starting Calculations')
+        
+        if self.workbook() is None:
+            self.write_to_status_bar('No active Daily Entry File found. Please create a new one.')
+            return
 
         def get_meal_info(worksheet, col):
             meal_values = column_values(worksheet, col)[1:]
-            meal_info = {
+            meal_statistics = {
                 "veg": meal_values.count('veg'),
                 "non-veg": meal_values.count('non-veg'),
                 "leave": meal_values.count('LEAVE'),
@@ -684,15 +699,15 @@ Food to be Prepared:
                 "coupon_number": 0,
                 "coupon_amount": 0.0
             }
-            return meal_info
+            return meal_statistics
 
-        def process_coupons(worksheet, meal_info):
+        def process_meal_coupons(worksheet, meal_info):
             coupon_values = column_values(worksheet, 2)[1:]
             meal_info['coupon_number'] = len(coupon_values)
             meal_info['coupon_amount'] = sum(float(coupon) for coupon in coupon_values if coupon)
             return meal_info
 
-        def display_info(meal_info, meal, parent):
+        def display_meal_info(meal_info, meal, parent):
             parent += f"""{meal}:
 • Veg: {meal_info['veg']}
 • Non-Veg: {meal_info['non-veg']}
@@ -705,54 +720,56 @@ Food to be Prepared:
 """
             return parent
 
-        online_available = True
+        is_online_sheet_available = True
         try:
-            sheet_name = f'{self.date.get()} {self.file_name.get()}'
-            sheet = client.open(sheet_name)
-            prepaid_sheet = sheet.worksheet('Prepaid Sheet')
-            coupons_breakfast_sheet = sheet.worksheet('Coupons Breakfast')
-            coupons_lunch_sheet = sheet.worksheet('Coupons Lunch')
-            coupons_dinner_sheet = sheet.worksheet('Coupons Dinner')
-            calculations_sheet = sheet.worksheet('Calculations')
+            prepaid_sheet = self.gsheet().worksheet('Prepaid Sheet')
+            coupons_breakfast_sheet = self.gsheet().worksheet('Coupons Breakfast')
+            coupons_lunch_sheet = self.gsheet().worksheet('Coupons Lunch')
+            coupons_dinner_sheet = self.gsheet().worksheet('Coupons Dinner')
+            calculations_sheet = self.gsheet().worksheet('Calculations')
         except gspread.exceptions.SpreadsheetNotFound:
-            online_available = False
+            is_online_sheet_available = False
             self.write_to_status_bar('Google Sheet not found, using local file instead.')
-            today_s_workbook = xl.load_workbook(self.get_file('daily_entry'))
-            prepaid_sheet = today_s_workbook['Prepaid Sheet']
-            coupons_breakfast_sheet = today_s_workbook['Coupons Breakfast']
-            coupons_lunch_sheet = today_s_workbook['Coupons Lunch']
-            coupons_dinner_sheet = today_s_workbook['Coupons Dinner']
-            calculations_sheet = today_s_workbook['Calculations']
+            
+            if not os.path.exists(self.get_file('daily_entry')):
+                self.write_to_status_bar('Daily entry file does not exist. Please create a new file before calculating.')
+                return
+            
+            prepaid_sheet = self.workbook()['Prepaid Sheet']
+            coupons_breakfast_sheet = self.workbook()['Coupons Breakfast']
+            coupons_lunch_sheet = self.workbook()['Coupons Lunch']
+            coupons_dinner_sheet = self.workbook()['Coupons Dinner']
+            calculations_sheet = self.workbook()['Calculations']
 
         breakfast_info = get_meal_info(prepaid_sheet, 3)
         lunch_info = get_meal_info(prepaid_sheet, 5)
         dinner_info = get_meal_info(prepaid_sheet, 7)
 
-        breakfast_info = process_coupons(coupons_breakfast_sheet, breakfast_info)
-        lunch_info = process_coupons(coupons_lunch_sheet, lunch_info)
-        dinner_info = process_coupons(coupons_dinner_sheet, dinner_info)
+        breakfast_info = process_meal_coupons(coupons_breakfast_sheet, breakfast_info)
+        lunch_info = process_meal_coupons(coupons_lunch_sheet, lunch_info)
+        dinner_info = process_meal_coupons(coupons_dinner_sheet, dinner_info)
 
         display_str = ""
-        display_str = display_info(breakfast_info, "Breakfast", display_str)
-        display_str = display_info(lunch_info, "Lunch", display_str)
-        display_str = display_info(dinner_info, "Dinner", display_str)
+        display_str = display_meal_info(breakfast_info, "Breakfast", display_str)
+        display_str = display_meal_info(lunch_info, "Lunch", display_str)
+        display_str = display_meal_info(dinner_info, "Dinner", display_str)
 
         self.information_box.configure(state='normal')
         self.information_box.delete('0.0', 'end')
         self.information_box.insert('0.0', display_str)
         self.information_box.configure(state='disabled')
 
-        if online_available:
+        if is_online_sheet_available:
             calculations_sheet.clear()
-            data = [[line] for line in display_str.splitlines()]
-            calculations_sheet.update(f'A1:A{len(data)}', data)
+            calculation_data = [[line] for line in display_str.splitlines()]
+            calculations_sheet.update(calculation_data, f'A1:A{len(calculation_data)}')
         else:
             for row in calculations_sheet['A1:H100']:
                 for cell in row:
                     cell.value = None
             for i, line in enumerate(display_str.splitlines(), start=1):
                 calculations_sheet.acell(row=i, column=1, value=line)
-            today_s_workbook.save(self.get_file('daily_entry'))
+            self.workbook().save(self.get_file('daily_entry'))
 
         self.write_to_status_bar('Calculations Done!')
 
@@ -779,9 +796,7 @@ Food to be Prepared:
 
         if level == 'error':
             try:
-                sheet_name = f'{self.date.get()} {self.file_name.get()}'
-                gsheet = client.open(sheet_name)
-                log_sheet = gsheet.worksheet('Log')
+                log_sheet = self.gsheet().worksheet('Log')
                 log_sheet.append_row([
                     now().strftime("%H:%M:%S"),
                     text
@@ -802,6 +817,41 @@ Food to be Prepared:
         if not os.path.exists(directory):
             os.mkdir(directory)
         return os.path.join(directory, file_name)
+    
+    def workbook(self):
+        if self._workbook_cache is None:
+            try:
+                self._workbook_cache = xl.load_workbook(self.get_file('daily_entry'))
+            except FileNotFoundError:
+                self.write_to_status_bar('Local Daily Entry file not found.')
+                return None
+            except PermissionError:
+                self.write_to_status_bar('Permission denied while accessing the file.')
+                return None
+            except Exception as e:
+                self.write_to_status_bar(f'An unexpected error occurred: {e}')
+                return None
+        return self._workbook_cache
+    
+    def gsheet(self):
+        if self._gsheet_cache is None:
+            try:
+                sheet_name = f'{self.date.get()} {self.file_name.get()}'
+                self._gsheet_cache = gsheet_client.open(sheet_name)
+            except gspread.exceptions.SpreadsheetNotFound:
+                self.write_to_status_bar('Google Sheet not found!')
+                return None
+            except NewConnectionError:
+                self.write_to_status_bar('Internet does not work, trying to do everything locally')
+                return None
+            except Exception as e:
+                self.write_to_status_bar(f'An unexpected error occurred: {e}')
+                return None
+        return self._gsheet_cache
+    
+    def clear_cache(self):
+        self._workbook_cache = None
+        self._gsheet_cache = None
 
 if __name__ == "__main__":
     app = App()
