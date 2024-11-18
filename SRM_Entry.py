@@ -459,11 +459,11 @@ class App(CTk):
             if online_meal_status in meal_types:
                 self.write_to_status_bar(f'{registration_number}: {name} was checked in other mess. STOP!')
                 return
-            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, status_col, current_meal_id)
-            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, time_col, current_time)
+            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, status_col + 1, current_meal_id)
+            gsheet_prepaid_sheet.update_cell(idx_of_registration_number, time_col + 1, current_time)
             
-        offline_prepaid_sheet.cell(idx_of_registration_number, status_col).value = current_meal_id
-        offline_prepaid_sheet.cell(idx_of_registration_number, time_col).value = current_time
+        offline_prepaid_sheet.cell(idx_of_registration_number, status_col + 1).value = current_meal_id
+        offline_prepaid_sheet.cell(idx_of_registration_number, time_col + 1).value = current_time
             
         self.write_to_status_bar(f'{registration_number}: {name} is checked.')
         if self.non_veg.get() == 1:
