@@ -48,16 +48,16 @@ CURRENT_DATE_STRING = CURRENT_DATE.strftime("%d %B, %Y")
 
 MEAL_COLUMN_MAPPING = {
     'Breakfast': {
-        'status': 3,
-        'time': 4,
+        'status': 2,
+        'time': 3,
     },
     'Lunch': {
-        'status': 5,
-        'time': 6,
+        'status': 4,
+        'time': 5,
     },
     'Dinner': {
-        'status': 7,
-        'time': 8,
+        'status': 6,
+        'time': 7,
     },
 }
 

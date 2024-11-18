@@ -11,7 +11,10 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 # Version
 
 ## Current Version
+### 1.2.1
+- Fixed the column numbers in `MEAL_COLUMN_MAPPING` to be `0` based again.
 
+## Older Versions
 ### 1.2.0
 - Reworked the logic for opening daily files. Implemented caching for the same. Check `workbook` and `gsheet` function.
 - Fixed old broken code that was preventing daily entry.
@@ -19,8 +22,6 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 - Changed formatting of constants to be SCREAMING_SNAKE_CASE.
 - Renamed some variables for better clarity.
 - Other minor refactoring.
-
-## Older Versions
 
 ### 1.1.0
 Added type hints everywhere which hopefully fixes issues.
