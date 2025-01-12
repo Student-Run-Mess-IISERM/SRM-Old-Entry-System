@@ -1,4 +1,4 @@
-VERSION="VERSION: 1.2.5"
+VERSION="1.2.6"
 
 import os
 import json
@@ -180,7 +180,7 @@ def subscriber_data_update():
 class App(CTk):
     def __init__(self):
         super().__init__()
-        self.title('SRM Data Entry System 0.1.0')
+        self.title(f'SRM Data Entry System v{VERSION}')
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure((0, 1, 2), weight=1)
@@ -309,7 +309,7 @@ class App(CTk):
         self.date.grid(row=1, column=1, padx=(10, 20), pady=(10, 10), sticky="nse")
 
         self.create_database = IntVar(value=1)
-        if current_hour >= 21:
+        if current_hour >= 22:
             self.date.insert(0, NEXT_DAY_DATE_STRING)
         else:
             self.date.insert(0, CURRENT_DATE_STRING)
