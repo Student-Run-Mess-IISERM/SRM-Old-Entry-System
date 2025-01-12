@@ -1,4 +1,4 @@
-VERSION="VERSION: 1.2.4"
+VERSION="VERSION: 1.2.5"
 
 import os
 import json
@@ -308,7 +308,7 @@ class App(CTk):
         self.date = CTkEntry(self.create_file)
         self.date.grid(row=1, column=1, padx=(10, 20), pady=(10, 10), sticky="nse")
 
-        self.create_database = IntVar(value=0)
+        self.create_database = IntVar(value=1)
         if current_hour >= 21:
             self.date.insert(0, NEXT_DAY_DATE_STRING)
         else:
@@ -626,43 +626,42 @@ class App(CTk):
             sheet_name = f'{self.date.get()} {self.file_name.get()}'
             try:
                 new_gsheet = gsheet_client.open(sheet_name)
+                self._gsheet_cache = new_gsheet
                 self.write_to_status_bar('Google Sheet already exists. Using existing sheet.')
             except gspread.exceptions.SpreadsheetNotFound:
                 new_gsheet = gsheet_client.create(sheet_name)
+                self._gsheet_cache = new_gsheet
+                repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
+                repository = Repository(repository_details_worksheet)
+                self.gsheet().share("studentmess@iisermohali.ac.in", perm_type='user', role='writer', notify=False)
+                for email in repository.share_to_emails:
+                    self.gsheet().share(email, perm_type='user', role='writer', notify=False)
+                self.gsheet().add_worksheet('Prepaid Sheet', rows=1000, cols=8)
+                self.gsheet().add_worksheet('Coupons Breakfast', rows=1000, cols=3)
+                self.gsheet().add_worksheet('Coupons Lunch', rows=1000, cols=3)
+                self.gsheet().add_worksheet('Coupons Dinner', rows=1000, cols=3)
+                self.gsheet().add_worksheet('Calculations', rows=1000, cols=2)
+                self.gsheet().add_worksheet('Log', rows=1000, cols=2)
+                self.gsheet().del_worksheet(self.gsheet().sheet1)
+
+                prepaid_gsheet = self.gsheet().worksheet('Prepaid Sheet')
+                coupons_breakfast_gsheet = self.gsheet().worksheet('Coupons Breakfast')
+                coupons_lunch_gsheet = self.gsheet().worksheet('Coupons Lunch')
+                coupons_dinner_gsheet = self.gsheet().worksheet('Coupons Dinner')
+
+                prepaid_gsheet.append_row(prepaid_sheet_header)
+                coupons_breakfast_gsheet.append_row(coupons_sheet_header)
+                coupons_lunch_gsheet.append_row(coupons_sheet_header)
+                coupons_dinner_gsheet.append_row(coupons_sheet_header)
+
+                prepaid_data = []
+
+                prepaid_sheet_rows = list(prepaid_sheet.iter_rows(min_row=2, values_only=True))
+                for row in prepaid_sheet_rows:
+                    prepaid_data.append(list(row))
+
+                gsheet_batch_upload(prepaid_gsheet, prepaid_sheet_header, prepaid_data)
                 self.write_to_status_bar('Google Sheet Created!')
-            self._gsheet_cache = new_gsheet
-            repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
-            repository = Repository(repository_details_worksheet)
-            self.gsheet().share("studentmess@iisermohali.ac.in", perm_type='user', role='writer', notify=False)
-            for email in repository.share_to_emails:
-                self.gsheet().share(email, perm_type='user', role='writer', notify=False)
-            self.gsheet().add_worksheet('Prepaid Sheet', rows=1000, cols=8)
-            self.gsheet().add_worksheet('Coupons Breakfast', rows=1000, cols=3)
-            self.gsheet().add_worksheet('Coupons Lunch', rows=1000, cols=3)
-            self.gsheet().add_worksheet('Coupons Dinner', rows=1000, cols=3)
-            self.gsheet().add_worksheet('Calculations', rows=1000, cols=2)
-            self.gsheet().add_worksheet('Log', rows=1000, cols=2)
-            self.gsheet().del_worksheet(self.gsheet().sheet1)
-
-            prepaid_gsheet = self.gsheet().worksheet('Prepaid Sheet')
-            coupons_breakfast_gsheet = self.gsheet().worksheet('Coupons Breakfast')
-            coupons_lunch_gsheet = self.gsheet().worksheet('Coupons Lunch')
-            coupons_dinner_gsheet = self.gsheet().worksheet('Coupons Dinner')
-
-            prepaid_gsheet.append_row(prepaid_sheet_header)
-            coupons_breakfast_gsheet.append_row(coupons_sheet_header)
-            coupons_lunch_gsheet.append_row(coupons_sheet_header)
-            coupons_dinner_gsheet.append_row(coupons_sheet_header)
-
-            prepaid_data = []
-
-            prepaid_sheet_rows = list(prepaid_sheet.iter_rows(min_row=2, values_only=True))
-            for row in prepaid_sheet_rows:
-                prepaid_data.append(list(row))
-
-            gsheet_batch_upload(prepaid_gsheet, prepaid_sheet_header, prepaid_data)
-
-            self.write_to_status_bar('Google Sheet Created!')
 
         self.workbook().save(self.get_file('daily_entry'))
         self.write_to_status_bar('File Created!')
