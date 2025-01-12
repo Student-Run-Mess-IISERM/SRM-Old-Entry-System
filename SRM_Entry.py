@@ -1,3 +1,5 @@
+VERSION="VERSION: 1.2.4"
+
 import os
 import json
 import traceback
@@ -306,11 +308,10 @@ class App(CTk):
         self.date = CTkEntry(self.create_file)
         self.date.grid(row=1, column=1, padx=(10, 20), pady=(10, 10), sticky="nse")
 
-        if current_hour >= 22:
-            self.create_database = IntVar(value=1)
+        self.create_database = IntVar(value=0)
+        if current_hour >= 21:
             self.date.insert(0, NEXT_DAY_DATE_STRING)
         else:
-            self.create_database = IntVar(value=0)
             self.date.insert(0, CURRENT_DATE_STRING)
 
         self.update_leave_repository = IntVar(value=1)
@@ -623,7 +624,12 @@ class App(CTk):
 
         if self.create_database.get() == 1:
             sheet_name = f'{self.date.get()} {self.file_name.get()}'
-            new_gsheet = gsheet_client.create(sheet_name)
+            try:
+                new_gsheet = gsheet_client.open(sheet_name)
+                self.write_to_status_bar('Google Sheet already exists. Using existing sheet.')
+            except gspread.exceptions.SpreadsheetNotFound:
+                new_gsheet = gsheet_client.create(sheet_name)
+                self.write_to_status_bar('Google Sheet Created!')
             self._gsheet_cache = new_gsheet
             repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
             repository = Repository(repository_details_worksheet)
