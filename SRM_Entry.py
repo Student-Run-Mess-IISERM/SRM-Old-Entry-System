@@ -1,4 +1,4 @@
-VERSION="1.3.3"
+VERSION="1.3.4"
 
 import os
 import json
@@ -21,6 +21,7 @@ from customtkinter import (
     CTkTabview,
     CTkTextbox,
     set_appearance_mode,
+    set_window_scaling,
 )
 from tkinter import IntVar
 from urllib3.exceptions import NewConnectionError
@@ -311,6 +312,14 @@ class App(CTk):
             text=f"Hostel {self.constants['hostel_number']}",
         )
         self.hostel.grid(row=4, column=0, columnspan=2, padx=(20, 20), pady=(10, 10), sticky='nsew')
+        
+        scaling_factor = self.constants.get("scaling", 0.8)
+        if not isinstance(scaling_factor, (int, float)):
+            self.write_to_status_bar("Error: 'scaling' value in constants.json is not a number. Using default scaling (1).", level='error')
+            scaling_factor = 1
+        elif not (0.5 <= scaling_factor <= 3.0):
+            self.write_to_status_bar("Warning: 'scaling' value in constants.json is outside the recommended range (0.5 to 2.0).  Using the provided value.", level='warning')
+        set_window_scaling(scaling_factor)
 
         self.tabview.add("Create File")
         self.tabview.tab("Create File").grid_columnconfigure((0, 1), weight=1)
@@ -426,21 +435,21 @@ class App(CTk):
 
         name_label = CTkLabel(frame, text="Name: ", text_color="black")
         name_label.grid(row=0, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
-        self.name_value = CTkLabel(frame, text="")
+        self.name_value = CTkLabel(frame, text="", text_color="black")
         self.name_value.grid(row=0, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
-        reg_label = CTkLabel(frame, text="Registration Number: ")
+        reg_label = CTkLabel(frame, text="Registration Number: ", text_color="black")
         reg_label.grid(row=1, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.reg_value = CTkLabel(frame, text="", text_color="black")
         self.reg_value.grid(row=1, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
-        meals_label = CTkLabel(frame, text="Number of Meals Subscribed To: ")
+        meals_label = CTkLabel(frame, text="Number of Meals Subscribed To: ", text_color="black")
         meals_label.grid(row=2, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.meals_value = CTkLabel(frame, text="", text_color="black")
         self.meals_value.grid(row=2, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
-        meals_sub_label = CTkLabel(frame, text="Meal Subscribed To: ")
+        meals_sub_label = CTkLabel(frame, text="Meal Subscribed To: ", text_color="black")
         meals_sub_label.grid(row=3, column=0, padx=(10, 5), pady=(5, 10), sticky="w")
-        self.meals_sub_value = CTkLabel(frame, text="", font=CTkFont(size=20, weight="bold"), text_color="black")
+        self.meals_sub_value = CTkLabel(frame, text="", font=CTkFont(size=16, weight="bold"), text_color="black")
         self.meals_sub_value.grid(row=3, column=1, padx=(5, 10), pady=(5, 10), sticky="w")
 
         return frame

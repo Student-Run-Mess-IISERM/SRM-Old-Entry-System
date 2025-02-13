@@ -12,11 +12,15 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 
 ## Current Version
 
+### 1.3.4
+- Add custom scaling factor that can be set from the `constants.json` file.
+- Make all the text black in the details display box.
+
+## Older Versions
+
 ### 1.3.3
 - Better colors for meal map.
 - Better contrast with text and background for details box.
-
-## Older Versions
 
 ### 1.3.2
 - Correct key for color map is not used to display student details.
