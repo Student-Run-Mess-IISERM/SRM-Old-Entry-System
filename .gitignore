@@ -3,3 +3,9 @@ constants.json
 Logs
 Daily Entry
 Subscriber Data.xlsx
+
+# uv
+uv.lock
+pyproject.toml
+.python-version
+.venv
