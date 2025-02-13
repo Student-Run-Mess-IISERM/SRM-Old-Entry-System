@@ -12,10 +12,13 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 
 ## Current Version
 
-### 1.3.1
-- Disable online features when credentials are not provided.
+### 1.3.2
+- Correct key for color map is not used to display student details.
 
 ## Older Versions
+
+### 1.3.1
+- Disable online features when credentials are not provided.
 
 ### 1.3.0
 - Implement dynamic details box with color-coded meal status, which displays student information and is color coded according to meal status.

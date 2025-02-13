@@ -1,4 +1,4 @@
-VERSION="1.3.1"
+VERSION="1.3.2"
 
 import os
 import json
@@ -514,7 +514,7 @@ class App(CTk):
             subscribed_meals.append("Dinner")
 
         num_meals_subscribed = len(subscribed_meals)
-        meal_string = ", ".join(sorted(subscribed_meals))
+        meal_string = ", ".join(subscribed_meals)
         
         current_meal_type = MEAL_COLUMN_MAPPING[self.meal.get()]
         status_col = current_meal_type['status']
