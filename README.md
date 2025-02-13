@@ -12,10 +12,14 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 
 ## Current Version
 
-### 1.3.2
-- Correct key for color map is not used to display student details.
+### 1.3.3
+- Better colors for meal map.
+- Better contrast with text and background for details box.
 
 ## Older Versions
+
+### 1.3.2
+- Correct key for color map is not used to display student details.
 
 ### 1.3.1
 - Disable online features when credentials are not provided.

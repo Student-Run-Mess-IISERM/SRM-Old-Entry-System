@@ -1,4 +1,4 @@
-VERSION="1.3.2"
+VERSION="1.3.3"
 
 import os
 import json
@@ -424,23 +424,23 @@ class App(CTk):
         frame = CTkFrame(parent)
         frame.grid(row=2, column=0, columnspan=6, padx=(20, 20), pady=(10, 20), sticky="nsew")
 
-        name_label = CTkLabel(frame, text="Name: ")
+        name_label = CTkLabel(frame, text="Name: ", text_color="black")
         name_label.grid(row=0, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.name_value = CTkLabel(frame, text="")
         self.name_value.grid(row=0, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
         reg_label = CTkLabel(frame, text="Registration Number: ")
         reg_label.grid(row=1, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
-        self.reg_value = CTkLabel(frame, text="")
+        self.reg_value = CTkLabel(frame, text="", text_color="black")
         self.reg_value.grid(row=1, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
         meals_label = CTkLabel(frame, text="Number of Meals Subscribed To: ")
         meals_label.grid(row=2, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
-        self.meals_value = CTkLabel(frame, text="")
+        self.meals_value = CTkLabel(frame, text="", text_color="black")
         self.meals_value.grid(row=2, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
         meals_sub_label = CTkLabel(frame, text="Meal Subscribed To: ")
         meals_sub_label.grid(row=3, column=0, padx=(10, 5), pady=(5, 10), sticky="w")
-        self.meals_sub_value = CTkLabel(frame, text="", font=CTkFont(size=16, weight="bold"))
+        self.meals_sub_value = CTkLabel(frame, text="", font=CTkFont(size=20, weight="bold"), text_color="black")
         self.meals_sub_value.grid(row=3, column=1, padx=(5, 10), pady=(5, 10), sticky="w")
 
         return frame
@@ -465,7 +465,7 @@ class App(CTk):
 
         color_map["Breakfast, Lunch, Dinner"] = "#F5F5DC" # Beige
 
-        color_map["LEAVE"] = "#A9A9A9"          # Dark Gray
+        color_map["LEAVE"] = "#F5A97F"          # Peach
         color_map["NOT"] = "#D3D3D3"            # Light Gray
         color_map["ALREADY_EATEN"] = "#FF6347"   # Tomato
         return color_map
