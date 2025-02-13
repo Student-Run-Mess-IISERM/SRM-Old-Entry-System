@@ -39,8 +39,14 @@ GOOGLE_API_SCOPES = [
     'https://www.googleapis.com/auth/drive',
 ]
 
-gsheet_credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', GOOGLE_API_SCOPES)
-gsheet_client = gspread.authorize(gsheet_credentials)
+try:
+    gsheet_credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', GOOGLE_API_SCOPES)
+    gsheet_client = gspread.authorize(gsheet_credentials)
+    ONLINE_ENABLED = True
+except FileNotFoundError:
+    gsheet_client = None
+    ONLINE_ENABLED = False
+    print("credentials.json not found.  Online features disabled.")
 
 NEXT_DAY_DATE = now() + timedelta(days=1)
 NEXT_DAY_DATE_STRING = NEXT_DAY_DATE.strftime("%d %B, %Y")
@@ -83,6 +89,8 @@ def row_values(worksheet, row):
         raise TypeError("Unsupported worksheet type")
 
 def gsheet_batch_upload(sheet, header, data):
+    if not ONLINE_ENABLED:
+        return
     sheet.clear()
     sheet.append_row(header)
     if not data:
@@ -119,6 +127,8 @@ def leave_update():
 
 class Repository:
     def __init__(self, repository_worksheet):
+        if not ONLINE_ENABLED:
+            return
         values_column = [cell_value.split(",") for cell_value in repository_worksheet.col_values(2)]
         self.file_names = values_column[0]
         self.sheet_names = values_column[1]
@@ -128,6 +138,8 @@ class Repository:
         self.share_to_emails = [email.strip() for email in values_column[5] if email.strip() != '']
 
 def subscriber_data_update():
+    if not ONLINE_ENABLED:
+        return
     repository_details_worksheet = gsheet_client.open('Repository Details for SRM').worksheet('Sheet1')
     repository = Repository(repository_details_worksheet)
     subscriber_repository_worksheet = gsheet_client.open('Repository for SRM').worksheet('Sheet1')
@@ -286,8 +298,13 @@ class App(CTk):
         else:
             self.meal.set('Dinner')
 
-        with open('constants.json', 'r') as f:
-            self.constants = json.load(f)
+        try:
+            with open('constants.json', 'r') as f:
+                self.constants = json.load(f)
+        except FileNotFoundError:
+            self.constants = {
+                'hostel_number': 5,
+            }
 
         self.hostel = CTkLabel(
             self.config_frame,
@@ -411,7 +428,6 @@ class App(CTk):
         name_label.grid(row=0, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.name_value = CTkLabel(frame, text="")
         self.name_value.grid(row=0, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
-
         reg_label = CTkLabel(frame, text="Registration Number: ")
         reg_label.grid(row=1, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.reg_value = CTkLabel(frame, text="")
@@ -533,7 +549,7 @@ class App(CTk):
         
         current_time = now().strftime("%H:%M:%S")
         
-        if self.update.get() == 1:
+        if self.update.get() == 1 and ONLINE_ENABLED:
             gsheet_prepaid_sheet = self.gsheet().worksheet('Prepaid Sheet')
             online_meal_status = gsheet_prepaid_sheet.cell(idx_of_registration_number, status_col).value
             if online_meal_status in meal_types:
@@ -566,7 +582,7 @@ class App(CTk):
         details_to_append = [name, price_float, now().strftime("%H:%M:%S")]
         coupon_sheet.append(details_to_append)
 
-        if self.update.get() == 1:
+        if self.update.get() == 1 and ONLINE_ENABLED:
             coupon_gsheet = self.gsheet().worksheet(f'Coupons {self.meal.get()}')
             coupon_gsheet.append_row(details_to_append)
 
@@ -588,11 +604,11 @@ class App(CTk):
         with open(self.get_file('log'), 'w') as file:
             json.dump([], file)
 
-        if self.update_leave_repository.get():
+        if self.update_leave_repository.get() and ONLINE_ENABLED:
             self.write_to_status_bar('Updating Leave Data')
             leave_update()
 
-        if self.update_repository.get():
+        if self.update_repository.get() and ONLINE_ENABLED:
             self.write_to_status_bar('Updating Subscriber Data')
             subscriber_data_update()
 
@@ -701,7 +717,7 @@ class App(CTk):
                         prepaid_sheet[f'G{idx}'].value = 'LEAVE'
                         leaves['dinner'] += 1
 
-        if self.create_database.get() == 1:
+        if self.create_database.get() == 1 and ONLINE_ENABLED:
             sheet_name = f'{self.date.get()} {self.file_name.get()}'
             try:
                 new_gsheet = gsheet_client.open(sheet_name)
