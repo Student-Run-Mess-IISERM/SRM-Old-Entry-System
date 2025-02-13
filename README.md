@@ -11,10 +11,14 @@ SRM Entry System using Custom Tkinter made by Ratnojit Bhattacharya and maintain
 # Changelog
 
 ## Current Version
-### 1.3.0
-- Implement dynamic details box with color-coded meal status, which displays student information and is color coded according to meal status.
+
+### 1.3.1
+- Disable online features when credentials are not provided.
 
 ## Older Versions
+
+### 1.3.0
+- Implement dynamic details box with color-coded meal status, which displays student information and is color coded according to meal status.
 
 ### 1.2.2
 - Increased indexing to account for `1` based indexing in `openpyxl` and `gspread`'s `update_cell` methods/properties.
