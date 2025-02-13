@@ -1,4 +1,4 @@
-VERSION="1.2.6"
+VERSION="1.3.0"
 
 import os
 import json
@@ -180,6 +180,7 @@ def subscriber_data_update():
 class App(CTk):
     def __init__(self):
         super().__init__()
+        self.meal_colors = self.generate_meal_colors()
         self.title(f'SRM Data Entry System v{VERSION}')
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure((2, 3), weight=0)
@@ -252,11 +253,15 @@ class App(CTk):
         CTkCheckBox(self.extra_config, text='Update in Database', variable=self.update).grid(
             row=0, column=0, padx=(20, 20), pady=(20, 10), sticky='nsew'
         )
+        
+        self.details_frame = None
 
         self.config_frame = CTkFrame(self.tabview.tab("Daily Entry"))
         self.config_frame.grid(row=1, column=0, columnspan=4, padx=(20, 10), pady=(10, 20), sticky="nsew")
         self.config_frame.grid_columnconfigure(0, weight=1)
 
+        self.details_frame = self.create_details_frame(self.tabview.tab("Daily Entry"))
+        
         self.non_veg = IntVar()
         CTkCheckBox(self.config_frame, text='Non-Veg', variable=self.non_veg).grid(
             row=0, column=0, padx=(20, 20), pady=(20, 10), sticky='nsew'
@@ -270,7 +275,7 @@ class App(CTk):
         self.prepaid_extra_price.insert(0, '30')
 
         self.meal = CTkSegmentedButton(self.config_frame)
-        self.meal.grid(row=2, column=0, columnspan=2, padx=(20, 20), pady=(10, 20), sticky='nsew')
+        self.meal.grid(row=3, column=0, columnspan=2, padx=(20, 20), pady=(10, 20), sticky='nsew')
         self.meal.configure(values=['Breakfast', 'Lunch', 'Dinner'])
 
         current_hour = now().hour
@@ -288,7 +293,7 @@ class App(CTk):
             self.config_frame,
             text=f"Hostel {self.constants['hostel_number']}",
         )
-        self.hostel.grid(row=3, column=0, columnspan=2, padx=(20, 20), pady=(10, 10), sticky='nsew')
+        self.hostel.grid(row=4, column=0, columnspan=2, padx=(20, 20), pady=(10, 10), sticky='nsew')
 
         self.tabview.add("Create File")
         self.tabview.tab("Create File").grid_columnconfigure((0, 1), weight=1)
@@ -397,6 +402,57 @@ class App(CTk):
                 to_write = f'Error: {e} \n {traceback.format_exc()}'
                 self.write_to_status_bar(to_write, 'error')
         return wrapper
+    
+    def create_details_frame(self, parent):
+        frame = CTkFrame(parent)
+        frame.grid(row=2, column=0, columnspan=6, padx=(20, 20), pady=(10, 20), sticky="nsew")
+
+        name_label = CTkLabel(frame, text="Name: ")
+        name_label.grid(row=0, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
+        self.name_value = CTkLabel(frame, text="")
+        self.name_value.grid(row=0, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
+
+        reg_label = CTkLabel(frame, text="Registration Number: ")
+        reg_label.grid(row=1 column=0, padx=(10, 5), pady=(5, 5), sticky="w")
+        self.reg_value = CTkLabel(frame, text="")
+        self.reg_value.grid(row=1, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
+
+        meals_label = CTkLabel(frame, text="Number of Meals Subscribed To: ")
+        meals_label.grid(row=2, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
+        self.meals_value = CTkLabel(frame, text="")
+        self.meals_value.grid(row=2, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
+
+        meals_sub_label = CTkLabel(frame, text="Meal Subscribed To: ")
+        meals_sub_label.grid(row=3, column=0, padx=(10, 5), pady=(5, 10), sticky="w")
+        self.meals_sub_value = CTkLabel(frame, text="", font=CTkFont(size=16, weight="bold"))
+        self.meals_sub_value.grid(row=3, column=1, padx=(5, 10), pady=(5, 10), sticky="w")
+
+        return frame
+
+    def update_details_box(self, name, reg_number, num_meals, meal_list, color):
+        self.name_value.configure(text=name)
+        self.reg_value.configure(text=reg_number)
+        self.meals_value.configure(text=num_meals)
+        self.meals_sub_value.configure(text=meal_list)
+        self.details_frame.configure(fg_color=color)
+        
+    def generate_meal_colors(self):
+        color_map = {}
+
+        color_map["Breakfast"] = "#ADD8E6"  # Light Blue
+        color_map["Lunch"] = "#90EE90"      # Light Green
+        color_map["Dinner"] = "#F08080"     # Light Coral
+
+        color_map["Breakfast, Lunch"] = "#E0FFFF"  # Light Cyan
+        color_map["Breakfast, Dinner"] = "#FAFAD2" # Light Goldenrod Yellow
+        color_map["Lunch, Dinner"] = "#D8BFD8"   # Thistle
+
+        color_map["Breakfast, Lunch, Dinner"] = "#F5F5DC" # Beige
+
+        color_map["LEAVE"] = "#A9A9A9"          # Dark Gray
+        color_map["NOT"] = "#D3D3D3"            # Light Gray
+        color_map["ALREADY_EATEN"] = "#FF6347"   # Tomato
+        return color_map
 
     def create_prepaid_entry(self, batch):
         
@@ -433,12 +489,31 @@ class App(CTk):
         subscriber_data = row_values(offline_prepaid_sheet, idx_of_registration_number)
         name = subscriber_data[0]
         
+        subscribed_meals = []
+        if subscriber_data[2] != "NOT":
+            subscribed_meals.append("Breakfast")
+        if subscriber_data[4] != "NOT":
+            subscribed_meals.append("Lunch")
+        if subscriber_data[6] != "NOT":
+            subscribed_meals.append("Dinner")
+
+        num_meals_subscribed = len(subscribed_meals)
+        meal_string = ", ".join(sorted(subscribed_meals))
+        
         current_meal_type = MEAL_COLUMN_MAPPING[self.meal.get()]
         status_col = current_meal_type['status']
         time_col = current_meal_type['time']
         current_meal_status = subscriber_data[status_col]
         
-        current_time = now().strftime("%H:%M:%S")
+        if current_meal_status in meal_types:
+            display_color = self.meal_colors["ALREADY_EATEN"]
+        elif current_meal_status == 'LEAVE':
+            display_color = self.meal_colors["LEAVE"]
+        elif current_meal_status == 'NOT':
+            display_color = self.meal_colors["NOT"]
+        else:
+            display_color = self.meal_colors.get(meal_string, "white")
+
         if self.non_veg.get() == 1:
             current_meal_id = "non-veg"
         else:
@@ -453,6 +528,8 @@ class App(CTk):
         elif current_meal_status == 'NOT':
             self.write_to_status_bar(f'{registration_number}: {name} is not subscribed in this meal. STOP!')
             return
+        
+        self.update_details_box(name, registration_number, num_meals_subscribed, meal_string, display_color)
         
         if self.update.get() == 1:
             gsheet_prepaid_sheet = self.gsheet().worksheet('Prepaid Sheet')
