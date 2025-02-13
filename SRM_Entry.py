@@ -413,7 +413,7 @@ class App(CTk):
         self.name_value.grid(row=0, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
         reg_label = CTkLabel(frame, text="Registration Number: ")
-        reg_label.grid(row=1 column=0, padx=(10, 5), pady=(5, 5), sticky="w")
+        reg_label.grid(row=1, column=0, padx=(10, 5), pady=(5, 5), sticky="w")
         self.reg_value = CTkLabel(frame, text="")
         self.reg_value.grid(row=1, column=1, padx=(5, 10), pady=(5, 5), sticky="w")
 
@@ -530,6 +530,8 @@ class App(CTk):
             return
         
         self.update_details_box(name, registration_number, num_meals_subscribed, meal_string, display_color)
+        
+        current_time = now().strftime("%H:%M:%S")
         
         if self.update.get() == 1:
             gsheet_prepaid_sheet = self.gsheet().worksheet('Prepaid Sheet')
