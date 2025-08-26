@@ -228,16 +228,16 @@ class App(CTk):
         self.prepaid_entry.grid_columnconfigure(0, weight=1)
         self.prepaid_entry.grid_columnconfigure(1, weight=4)
         self.prepaid_entry.grid_columnconfigure(2, weight=1)
-        CTkLabel(self.prepaid_entry, text='MS24').grid(row=0, column=0, padx=(20, 0), pady=(20, 10), sticky="nsew")
-        CTkLabel(self.prepaid_entry, text='MS23').grid(row=1, column=0, padx=(20, 0), pady=(20, 10), sticky="nsew")
-        CTkLabel(self.prepaid_entry, text='MS22').grid(row=2, column=0, padx=(20, 0), pady=(10, 10), sticky="nsew")
+        CTkLabel(self.prepaid_entry, text='MS25').grid(row=0, column=0, padx=(20, 0), pady=(20, 10), sticky="nsew")
+        CTkLabel(self.prepaid_entry, text='MS24').grid(row=1, column=0, padx=(20, 0), pady=(20, 10), sticky="nsew")
+        CTkLabel(self.prepaid_entry, text='MS23').grid(row=2, column=0, padx=(20, 0), pady=(10, 10), sticky="nsew")
         CTkLabel(self.prepaid_entry, text='Others').grid(row=3, column=0, padx=(20, 0), pady=(10, 20), sticky="nsew")
+        self.ms25 = CTkEntry(self.prepaid_entry, width=200)
+        self.ms25.grid(row=0, column=1, padx=(20, 0), pady=(20, 10), sticky="nsew")
         self.ms24 = CTkEntry(self.prepaid_entry, width=200)
-        self.ms24.grid(row=0, column=1, padx=(20, 0), pady=(20, 10), sticky="nsew")
-        self.ms23 = CTkEntry(self.prepaid_entry, width=200)
-        self.ms23.grid(row=1, column=1, padx=(20, 0), pady=(20, 10), sticky="nsew")
-        self.ms22 = CTkEntry(self.prepaid_entry)
-        self.ms22.grid(row=2, column=1, padx=(20, 0), pady=(10, 10), sticky="nsew")
+        self.ms24.grid(row=1, column=1, padx=(20, 0), pady=(20, 10), sticky="nsew")
+        self.ms23 = CTkEntry(self.prepaid_entry)
+        self.ms23.grid(row=2, column=1, padx=(20, 0), pady=(10, 10), sticky="nsew")
         self.others = CTkEntry(self.prepaid_entry)
         self.others.grid(row=3, column=1, padx=(20, 0), pady=(10, 20), sticky="nsew")
 
@@ -366,18 +366,18 @@ class App(CTk):
         self.generate_coupon = self.logger_create(self.generate_coupon)
         self.create_daily_file = self.logger_create(self.create_daily_file)
         
+        self.on_click_add_ms25 = lambda: self.create_prepaid_entry("MS25")
         self.on_click_add_ms24 = lambda: self.create_prepaid_entry("MS24")
         self.on_click_add_ms23 = lambda: self.create_prepaid_entry("MS23")
-        self.on_click_add_ms22 = lambda: self.create_prepaid_entry("MS22")
         self.on_click_add_others = lambda: self.create_prepaid_entry("others")
         self.on_click_generate_for_button = lambda: self.generate_coupon(self.coupon.get(), self.amount.get())
         
+        self.add_ms25 = CTkButton(self.prepaid_entry, text='Add', command=self.on_click_add_ms25, width=100)
+        self.add_ms25.grid(row=0, column=2, padx=(20, 20), pady=(20, 10), sticky="nse")
         self.add_ms24 = CTkButton(self.prepaid_entry, text='Add', command=self.on_click_add_ms24, width=100)
-        self.add_ms24.grid(row=0, column=2, padx=(20, 20), pady=(20, 10), sticky="nse")
+        self.add_ms24.grid(row=1, column=2, padx=(20, 20), pady=(20, 10), sticky="nse")
         self.add_ms23 = CTkButton(self.prepaid_entry, text='Add', command=self.on_click_add_ms23, width=100)
-        self.add_ms23.grid(row=1, column=2, padx=(20, 20), pady=(20, 10), sticky="nse")
-        self.add_ms22 = CTkButton(self.prepaid_entry, text='Add', command=self.on_click_add_ms22, width=100)
-        self.add_ms22.grid(row=2, column=2, padx=(20, 20), pady=(10, 10), sticky="nse")
+        self.add_ms23.grid(row=2, column=2, padx=(20, 20), pady=(10, 10), sticky="nse")
         self.add_others = CTkButton(self.prepaid_entry, text='Add', command=self.on_click_add_others, width=100)
         self.add_others.grid(row=3, column=2, padx=(20, 20), pady=(10, 20), sticky="nse")
         self.generate = CTkButton(
@@ -392,19 +392,19 @@ class App(CTk):
 
         self.file_name.bind('<Down>', lambda event: self.date.focus_set())
         self.date.bind('<Up>', lambda event: self.file_name.focus_set())
+        self.ms25.bind('<Down>', lambda event: self.ms24.focus_set())
+        self.ms25.bind('<Right>', lambda event: self.coupon.focus_set())
+        self.ms24.bind('<Up>', lambda event: self.ms25.focus_set())
         self.ms24.bind('<Down>', lambda event: self.ms23.focus_set())
-        self.ms24.bind('<Right>', lambda event: self.coupon.focus_set())
-        self.ms23.bind('<Up>', lambda event: self.ms24.focus_set())
-        self.ms23.bind('<Down>', lambda event: self.ms22.focus_set())
+        self.ms24.bind('<Right>', lambda event: self.amount.focus_set())
         self.ms23.bind('<Right>', lambda event: self.amount.focus_set())
-        self.ms22.bind('<Right>', lambda event: self.amount.focus_set())
-        self.ms22.bind('<Up>', lambda event: self.ms23.focus_set())
-        self.ms22.bind('<Down>', lambda event: self.others.focus_set())
-        self.others.bind('<Up>', lambda event: self.ms22.focus_set())
+        self.ms23.bind('<Up>', lambda event: self.ms24.focus_set())
+        self.ms23.bind('<Down>', lambda event: self.others.focus_set())
+        self.others.bind('<Up>', lambda event: self.ms23.focus_set())
         self.others.bind('<Right>', lambda event: self.amount.focus_set())
         self.coupon.bind('<Down>', lambda event: self.amount.focus_set())
-        self.coupon.bind('<Left>', lambda event: self.ms23.focus_set())
-        self.amount.bind('<Left>', lambda event: self.ms22.focus_set())
+        self.coupon.bind('<Left>', lambda event: self.ms24.focus_set())
+        self.amount.bind('<Left>', lambda event: self.ms23.focus_set())
         self.amount.bind('<Up>', lambda event: self.coupon.focus_set())
         self.amount.bind('<Down>', lambda event: self.others.focus_set())
 
@@ -412,9 +412,9 @@ class App(CTk):
         self.date.bind('<Return>', lambda event: self.create_daily_file())
         self.coupon.bind('<Return>', lambda event: self.amount.focus_set())
         self.amount.bind('<Return>', lambda event: self.generate_coupon(self.coupon.get(), self.amount.get()))
+        self.ms25.bind('<Return>', lambda event: self.on_click_add_ms25())
         self.ms24.bind('<Return>', lambda event: self.on_click_add_ms24())
         self.ms23.bind('<Return>', lambda event: self.on_click_add_ms23())
-        self.ms22.bind('<Return>', lambda event: self.on_click_add_ms22())
         self.others.bind('<Return>', lambda event: self.on_click_add_others())
         
         self._workbook_cache = None
@@ -485,7 +485,11 @@ class App(CTk):
             self.write_to_status_bar('No active Daily Entry File found. Please create a new one.')
             return
         
-        if batch == 'MS24':
+        if batch == 'MS25':
+            num = str(self.ms25.get()).rjust(3, '0')
+            registration_number = f'MS25{num}'
+            self.ms25.delete(0, 'end')
+        elif batch == 'MS24':
             num = str(self.ms24.get()).rjust(3, '0')
             registration_number = f'MS24{num}'
             self.ms24.delete(0, 'end')
@@ -493,10 +497,6 @@ class App(CTk):
             num = str(self.ms23.get()).rjust(3, '0')
             registration_number = f'MS23{num}'
             self.ms23.delete(0, 'end')
-        elif batch == 'MS22':
-            num = str(self.ms22.get()).rjust(3, '0')
-            registration_number = f'MS22{num}'
-            self.ms22.delete(0, 'end')
         else:
             registration_number = self.others.get().upper().strip()
             self.others.delete(0, 'end')
